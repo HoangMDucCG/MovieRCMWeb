@@ -1,47 +1,47 @@
 {% load static %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Phim lẻ</title>
 
-    <link rel="stylesheet" href="{% static 'movies/style.css' %}">
+    <link rel="stylesheet" href="{% static 'movies/style.css' %}" />
 </head>
 
 <body>
-
     <header class="site-header">
         <div class="header-container">
-
             <div class="logo">
                 <a href="{% url 'home' %}">
                     <span class="logo-main">WEB</span><span class="logo-sub">PHIMMOI</span>
                 </a>
             </div>
 
-            <div class="search-wrapper" style="position: relative;">
-            <form class="search-box" method="GET" action="{% url 'search' %}">
-                <!-- Icon kính lúp SVG -->
-                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                    <path d="M10 2a8 8 0 016.32 12.9l4.387 4.387a1 1 0 01-1.414 1.414l-4.387-4.387A8 8 0 1110 2zm0 2a6 6 0 100 12 6 6 0 000-12z"/>
-                </svg>
-                <input type="text" name="q" id="search-input" placeholder="Tìm kiếm phim..." autocomplete="off">
-            </form>
+            <div class="search-wrapper" style="position: relative">
+                <form class="search-box" method="GET" action="{% url 'search' %}">
+                    <!-- Icon kính lúp SVG -->
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18"
+                        height="18" fill="currentColor">
+                        <path
+                            d="M10 2a8 8 0 016.32 12.9l4.387 4.387a1 1 0 01-1.414 1.414l-4.387-4.387A8 8 0 1110 2zm0 2a6 6 0 100 12 6 6 0 000-12z" />
+                    </svg>
+                    <input type="text" name="q" id="search-input" placeholder="Hôm nay có phim gì hay..."
+                        autocomplete="off" />
+                </form>
 
-            <!-- Khung xổ xuống (Mặc định ẩn) -->
-            <div id="search-dropdown" class="search-dropdown" style="display: none;">
-                <div class="dropdown-header">Danh sách phim</div>
-                <div id="search-results-list">
-                    <!-- Dữ liệu từ JavaScript sẽ được nhúng vào đây -->
+                <!-- Khung xổ xuống (Mặc định ẩn) -->
+                <div id="search-dropdown" class="search-dropdown" style="display: none">
+                    <div class="dropdown-header">Danh sách phim</div>
+                    <div id="search-results-list">
+                        <!-- Dữ liệu từ JavaScript sẽ được nhúng vào đây -->
+                    </div>
                 </div>
             </div>
-        </div>
 
             <nav class="header-nav">
                 <ul class="nav-list">
-
                     <li class="nav-item">
                         <a href="{% url 'home' %}">TRANG CHỦ</a>
                     </li>
@@ -51,9 +51,9 @@
 
                         <div class="dropdown-content">
                             {% for the_loai in categories %}
-                                <a href="{% url 'the_loai' %}?ten={{ the_loai.name }}">
-                                    {{ the_loai.name }}
-                                </a>
+                            <a href="{% url 'the_loai' %}?ten={{ the_loai.name }}">
+                                {{ the_loai.name }}
+                            </a>
                             {% endfor %}
                         </div>
                     </li>
@@ -69,7 +69,6 @@
                     <li class="nav-item">
                         <a href="{% url 'ngau_nhien' %}">NGẪU NHIÊN</a>
                     </li>
-
                 </ul>
             </nav>
 
@@ -78,51 +77,62 @@
                     Mode: Sáng
                 </button>
             </div>
-
         </div>
     </header>
 
-    <main>
-
-        <h2 style="margin-left: 20px; color: #f39c12; margin-top: 20px;">
-            Phim lẻ
+    <main id="danh-sach-phim">
+        <h2 style="margin-left: 20px; color: #f39c12; margin-top: 20px;font-size: 24px">
+            Phim lẻ <!-- Đổi thành "Phim bộ" nếu sửa ở file phim_bo.html -->
         </h2>
 
+        <!-- Đổi sang class movie-grid-5 và thêm margin để căn lề -->
         <div class="movie-list-container">
-            <div class="movie-grid">
-
+            <div class="movie-grid-5" style="margin: 0 20px;">
                 {% for movie in movies %}
-
-                    <div class="movie-card">
-
-                        <a href="{% url 'xem_series' movie.id %}"
-                           style="text-decoration: none; color: inherit; display: block;">
-
-                            <img src="{{ movie.poster_url }}"
-                                 alt="{{ movie.title }}"
-                                 class="poster-img">
-
-                            <div class="movie-info">
-
-                                <h3>{{ movie.title }}</h3>
-
-                                <p style="color: #8b8c91; font-size: 14px;">
-                                    Rating: {{ movie.rating }}
-                                </p>
-
-                            </div>
-
-                        </a>
-
-                    </div>
-
+                <div class="movie-card">
+                    <a href="{% url 'xem_series' movie.id %}"
+                        style="text-decoration: none; color: inherit; display: block;">
+                        <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" class="poster-img" />
+                        <div class="movie-info">
+                            <h3>{{ movie.title }}</h3>
+                            <p style="color: #8b8c91; font-size: 14px">
+                                Rating: {{ movie.rating }}
+                            </p>
+                        </div>
+                    </a>
+                </div>
                 {% endfor %}
-
             </div>
         </div>
 
+        <!-- Thanh phân trang (Dùng biến 'movies' thay vì 'new_movies') -->
+        <div class="pagination">
+            <div class="page-numbers">
+                <span class="page-info">Trang {{ movies.number }} / {{ movies.paginator.num_pages }}</span>
+
+                {% if movies.number > 1 %}
+                <a href="?page=1#danh-sach-phim" class="page-link">Trang Đầu</a>
+                {% endif %}
+
+                <!-- prettier-ignore -->
+                {% for num in movies.paginator.page_range %}
+                {% if num == movies.number %}
+                <span class="page-link current-page">{{ num }}</span>
+                {% elif num > movies.number|add:'-3' and num < movies.number|add:'3' %} <a
+                    href="?page={{ num }}#danh-sach-phim" class="page-link">{{ num }}</a>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if movies.number < movies.paginator.num_pages %} <a
+                        href="?page={{ movies.paginator.num_pages }}#danh-sach-phim" class="page-link">Trang
+                        Cuối</a>
+                        {% endif %}
+            </div>
+        </div>
     </main>
     <script src="{% static 'js/BL_mode.js' %}"></script>
     <script src="{% static 'js/live_search.js' %}"></script>
+    <script src="{% static 'js/header.js' %}"></script>
 </body>
+
 </html>

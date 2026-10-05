@@ -5,29 +5,36 @@ from .models import Movie, Genre
 from urllib.parse import urlparse, parse_qs
 from django.http import JsonResponse
 from django.urls import reverse
+from django.views.decorators.cache import never_cache
+from django.core.paginator import Paginator
 
 
+@never_cache
 def home_page(request):
     today = date.today()
-    # 1. PHIM ĐANG HOT: Rating > 7.0 và đã/đang chiếu
     hot_movies = Movie.objects.filter(rating__gt=8.0, release_date__lte=today).order_by(
         "-rating"
     )[:10]
-    # 2. PHIM SẮP CHIẾU: Rating 0.0 và ngày phát hành lớn hơn hôm nay
     upcoming_movies = Movie.objects.filter(rating=0.0, release_date__gt=today).order_by(
         "release_date"
     )[:10]
-    # 3. PHIM MỚI RA: Đã chiếu, sắp xếp từ mới nhất đến cũ nhất
-    new_movies = Movie.objects.filter(release_date__lte=today).order_by("-release_date")
+
+    # Lấy toàn bộ phim mới
+    new_movies_list = Movie.objects.filter(release_date__lte=today).order_by(
+        "-release_date"
+    )
+
+    # Phân trang: 25 phim mỗi trang (5 dòng x 5 cột)
+    paginator = Paginator(new_movies_list, 25)
+    page_number = request.GET.get("page")
+    new_movies = paginator.get_page(page_number)
 
     danh_sach_the_loai = Genre.objects.all()
 
     context = {
-        # Truyền tạm new_movies vào biến 'movies' để vòng lặp ở home.html cũ không bị sập
-        "movies": new_movies,
         "upcoming_movies": upcoming_movies,
         "hot_movies": hot_movies,
-        "new_movies": new_movies,
+        "new_movies": new_movies,  # Bây giờ biến này đã mang theo dữ liệu phân trang
         "categories": danh_sach_the_loai,
     }
     return render(request, "movies/home.html", context)
@@ -57,27 +64,121 @@ def the_loai(request):
 
 
 def search_movie(request):
-    # Lấy dữ liệu từ URL, mặc định là chuỗi rỗng nếu không có
-    query = request.GET.get("q", "").strip()
-    genre_filter = request.GET.get("genre", "").strip()
+    # ==============================
+    # LẤY DỮ LIỆU TỪ URL
+    # ==============================
 
-    # 1. Khởi tạo danh sách chứa TOÀN BỘ phim
+    query = request.GET.get("q", "").strip()
+
+    movie_type = request.GET.get("type", "").strip()
+
+    genre_filters = request.GET.getlist("genre")
+
+    min_rating = request.GET.get("min_rating", "").strip()
+
+    min_runtime = request.GET.get("min_runtime", "").strip()
+
+    max_runtime = request.GET.get("max_runtime", "").strip()
+
+    # ==============================
+    # LẤY TOÀN BỘ PHIM
+    # ==============================
+
     movies = Movie.objects.all().order_by("-id")
 
-    # 2. Nếu người dùng có gõ tìm tên phim -> Lọc theo tên
+    # ==============================
+    # 1. LỌC THEO TÊN
+    # ==============================
+
     if query:
         movies = movies.filter(title__icontains=query)
 
-    # 3. Nếu người dùng có chọn thể loại -> Lọc tiếp theo thể loại
-    if genre_filter:
-        movies = movies.filter(genres__name=genre_filter)
+    # ==============================
+    # 2. LỌC THEO LOẠI PHIM
+    # ==============================
 
-    # 4. Gửi kết quả ra giao diện
+    if movie_type:
+        movies = movies.filter(type=movie_type)
+
+    # ==============================
+    # 3. LỌC THEO THỂ LOẠI
+    # OR
+    # Chỉ cần thuộc 1 trong các thể loại
+    # được chọn là được
+    # ==============================
+
+    if genre_filters:
+        movies = movies.filter(genres__name__in=genre_filters).distinct()
+
+    # ==============================
+    # 4. LỌC THEO RATING
+    # ==============================
+
+    if min_rating:
+        try:
+            min_rating_value = float(min_rating)
+
+            if min_rating_value > 0:
+                movies = movies.filter(rating__gte=min_rating_value)
+
+        except ValueError:
+            pass
+
+    # ==============================
+    # 5. LỌC THỜI LƯỢNG TỐI THIỂU
+    # ==============================
+
+    if min_runtime:
+        try:
+            min_runtime_value = int(min_runtime)
+
+            movies = movies.filter(runtime_minutes__gte=min_runtime_value)
+
+        except ValueError:
+            pass
+
+    # ==============================
+    # 6. LỌC THỜI LƯỢNG TỐI ĐA
+    # ==============================
+
+    if max_runtime:
+        try:
+            max_runtime_value = int(max_runtime)
+
+            movies = movies.filter(runtime_minutes__lte=max_runtime_value)
+
+        except ValueError:
+            pass
+
+    # ==============================
+    # 7. XỬ LÝ PHÂN TRANG VÀ GIỮ BỘ LỌC
+    # ==============================
+
+    # Lấy toàn bộ tham số hiện tại trên URL (q, type, genre...) và loại bỏ biến 'page' cũ
+    query_dict = request.GET.copy()
+    if "page" in query_dict:
+        del query_dict["page"]
+    query_string = query_dict.urlencode()  # Ép thành chuỗi dạng q=batman&type=Phim+Lẻ
+
+    # Phân trang: 25 phim mỗi trang
+    paginator = Paginator(movies, 25)
+    page_number = request.GET.get("page")
+    movies_page = paginator.get_page(page_number)
+
+    # ==============================
+    # GỬI DỮ LIỆU RA HTML
+    # ==============================
+
     context = {
-        "movies": movies,
+        "movies": movies_page,  # Truyền dữ liệu đã cắt trang
+        "query_string": query_string,  # Truyền chuỗi bộ lọc ra để gắn vào link phân trang
         "categories": Genre.objects.all(),
         "query": query,
-        "selected_genre": genre_filter,
+        "selected_type": movie_type,
+        "selected_genres": genre_filters,
+        "selected_rating": min_rating,
+        "selected_min_runtime": min_runtime,
+        "selected_max_runtime": max_runtime,
     }
 
     return render(request, "movies/search.html", context)
@@ -105,22 +206,36 @@ def live_search(request):
 
 
 def phim_le(request):
+    # 1. Lấy toàn bộ danh sách phim lẻ
     danh_sach_phim = Movie.objects.filter(type="Phim Lẻ").order_by("-release_date")
+
+    # 2. Cấu hình phân trang (25 phim / 1 trang)
+    paginator = Paginator(danh_sach_phim, 25)
+    page_number = request.GET.get("page")
+    movies_page = paginator.get_page(page_number)
+
     danh_sach_the_loai = Genre.objects.all()
 
     context = {
-        "movies": danh_sach_phim,
+        "movies": movies_page,  # Đưa dữ liệu đã cắt trang ra ngoài giao diện
         "categories": danh_sach_the_loai,
     }
     return render(request, "movies/phim_le.html", context)
 
 
 def phim_bo(request):
+    # 1. Lấy toàn bộ danh sách phim bộ
     danh_sach_phim = Movie.objects.filter(type="Phim Bộ").order_by("-release_date")
+
+    # 2. Cấu hình phân trang (25 phim / 1 trang)
+    paginator = Paginator(danh_sach_phim, 25)
+    page_number = request.GET.get("page")
+    movies_page = paginator.get_page(page_number)
+
     danh_sach_the_loai = Genre.objects.all()
 
     context = {
-        "movies": danh_sach_phim,
+        "movies": movies_page,  # Đưa dữ liệu đã cắt trang ra ngoài giao diện
         "categories": danh_sach_the_loai,
     }
     return render(request, "movies/phim_bo.html", context)
