@@ -1,3 +1,4 @@
+import json
 import random
 from datetime import date
 from django.shortcuts import render, get_object_or_404, redirect
@@ -7,6 +8,11 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.core.paginator import Paginator
+from google import genai
+from google.genai import types
+
+API_KEY = ""
+ai_client = genai.Client(api_key=API_KEY)
 
 
 @never_cache
@@ -15,9 +21,9 @@ def home_page(request):
     hot_movies = Movie.objects.filter(rating__gt=8.0, release_date__lte=today).order_by(
         "-rating"
     )[:10]
-    upcoming_movies = Movie.objects.filter(rating=0.0, release_date__gt=today).order_by(
+    upcoming_movies = Movie.objects.filter(release_date__gt=today).order_by(
         "release_date"
-    )[:10]
+    )
 
     # Lấy toàn bộ phim mới
     new_movies_list = Movie.objects.filter(release_date__lte=today).order_by(
@@ -316,4 +322,92 @@ def view_phim_hot(request):
     return render(request, "movies/phim_hot.html", {"movies": movies})
 
 
-# XÓA BỎ HOÀN TOÀN HÀM xem_phim(request, id)
+def chatbot_api(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            user_message = data.get("message", "").strip()
+
+            if not user_message:
+                return JsonResponse({"reply": "Bạn muốn mình tư vấn phim gì nào?"})
+
+            today = date.today()
+
+            # 1. Lấy 50 phim mới nhất kèm Thể loại và Link rạp (Dùng prefetch_related để web không bị giật lag)
+            phim_db = Movie.objects.prefetch_related(
+                "genres", "theater_links"
+            ).order_by("-release_date")
+
+            chi_tiet_phim = []
+            for p in phim_db:
+                # Lọc Thể loại
+                the_loai = (
+                    ", ".join([g.name for g in p.genres.all()])
+                    if p.genres.exists()
+                    else "Chưa rõ"
+                )
+
+                # Lọc Trạng thái (Sắp chiếu / Đã chiếu / Đang chiếu rạp / Phim Hot)
+                trang_thai = []
+                if p.release_date and p.release_date > today:
+                    trang_thai.append(
+                        f"Sắp chiếu (Dự kiến: {p.release_date.strftime('%d/%m/%Y')})"
+                    )
+                else:
+                    trang_thai.append("Đã ra mắt")
+
+                if getattr(p, "is_chieu_rap", False):
+                    trang_thai.append("Đang chiếu rạp")
+                if p.rating > 8.0:
+                    trang_thai.append("Phim Hot🔥")
+
+                # Lọc Nơi xem (Rạp CGV, Lotte... hoặc Online như Netflix)
+                noi_xem = [link.theater_name for link in p.theater_links.all()]
+                noi_xem_str = (
+                    ", ".join(noi_xem) if noi_xem else "Chưa có thông tin nền tảng"
+                )
+
+                # Đóng gói thành 1 câu hoàn chỉnh cho AI đọc
+                info = f"- Tên phim: {p.title} | Thể loại: {the_loai} | Đánh giá: {p.rating}/10 | Trạng thái: {', '.join(trang_thai)} | Có thể xem tại: {noi_xem_str}"
+                chi_tiet_phim.append(info)
+
+            danh_sach_phim = "\n".join(chi_tiet_phim)
+
+            # 2. Huấn luyện lại "Bộ não" để AI biết cách dùng dữ liệu mới
+            luat_choi = """
+            Bạn là trợ lý ảo CSKH cực kỳ chuyên nghiệp của WebPHIMMOI.
+            Nhiệm vụ: Tư vấn phim CHỈ DỰA TRÊN danh sách được cung cấp. Tuyệt đối không bịa phim ngoài danh sách.
+            
+            QUY TẮC TRÌNH BÀY BẮT BUỘC (RẤT QUAN TRỌNG):
+            1. LUÔN in đậm tên phim bằng dấu sao (Ví dụ: **Avengers: Hồi Kết**).
+            2. Nếu liệt kê nhiều phim, PHẢI dùng dấu gạch ngang (-) ở đầu dòng và mỗi phim nằm trên 1 dòng riêng biệt.
+            3. Giãn cách các đoạn văn bằng 1 dòng trống để khách dễ đọc.
+            4. Luôn trả lời ngắn gọn, thân thiện, xưng "mình" và gọi khách là "bạn".
+
+            - Nếu khách hỏi "phim chiếu rạp", hãy tìm phim có chữ "Đang chiếu rạp".
+            - Nếu khách hỏi "xem online", hãy tìm phim có nền tảng như "Netflix" ở mục "Có thể xem tại".
+            - Nếu khách hỏi rạp cụ thể (VD: CGV, Lotte), hãy dò đúng tên rạp trong mục "Có thể xem tại".
+            """
+
+            # 3. Gửi cục dữ liệu siêu chi tiết này cho Gemini
+            prompt = f"DANH SÁCH PHIM HIỆN CÓ:\n{danh_sach_phim}\n\nCâu hỏi của khách: {user_message}"
+
+            response = ai_client.models.generate_content(
+                model="gemini-flash-lite-latest",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=luat_choi,
+                ),
+            )
+
+            return JsonResponse({"reply": response.text})
+
+        except Exception as e:
+            return JsonResponse(
+                {
+                    "reply": "Hệ thống AI hiện đang nghỉ ngơi một chút, bạn thử lại sau vài phút nhé!"
+                },
+                status=500,
+            )
+
+    return JsonResponse({"reply": "Yêu cầu không hợp lệ"}, status=400)

@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Phim bộ</title>
     <link rel="stylesheet" href="{% static 'movies/style.css' %}" />
+    <link rel="icon" href="{% static 'media/logo.png' %}" type="image/png" />
 </head>
 
 <body>
@@ -124,10 +125,30 @@
                         {% endif %}
             </div>
         </div>
+        <!-- KHUNG CHAT AI BONG BÓNG -->
+        <div id="ai-chat-container" class="ai-chat-container">
+            <div id="ai-chat-window" class="ai-chat-window" style="display: none;">
+                <div class="chat-header">
+                    <span>Trợ lý WebPHIMMOI</span>
+                    <button id="close-chat-btn" class="close-chat-btn">×</button>
+                </div>
+                <div id="chat-messages" class="chat-messages">
+                    <!-- Viết liền tù tì trên 1 dòng, không Enter ngắt dòng bên trong thẻ div -->
+                    <div class="msg bot-msg">Chào Bạn! Bạn đang muốn tìm phim thể loại gì, hay phim hợp với tâm trạng
+                        hôm nay? Mình gợi ý cho!</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Ví dụ: Phim hài tình cảm..." autocomplete="off">
+                    <button id="send-chat-btn" class="send-chat-btn">Gửi</button>
+                </div>
+            </div>
+            <button id="ai-chat-toggle" class="ai-chat-toggle">💬 Tư vấn phim</button>
+        </div>
     </main>
     <script src="{% static 'js/BL_mode.js' %}"></script>
     <script src="{% static 'js/live_search.js' %}"></script>
     <script src="{% static 'js/header.js' %}"></script>
+    <script src="{% static 'js/chatbot.js' %}"></script>
 </body>
 
 </html>

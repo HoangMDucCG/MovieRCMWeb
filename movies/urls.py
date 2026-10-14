@@ -11,4 +11,5 @@ urlpatterns = [
     path("chi-tiet/<int:id>/", views.xem_series, name="xem_series"),
     path("dang-chieu/", views.phim_dang_chieu, name="phim_dang_chieu"),
     path("live-search/", views.live_search, name="live_search"),
+    path("api/chatbot/", views.chatbot_api, name="chatbot_api"),
 ]
