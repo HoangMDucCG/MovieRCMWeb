@@ -3,19 +3,15 @@
 // POPUP RẠP ĐANG CHIẾU
 // =========================================
 
-const theaterBtn = document.getElementById("theaterBtn");
-const theaterModal = document.getElementById("theaterModal");
-const theaterClose = document.getElementById("theaterClose");
+if (theaterBtn && theaterModal && theaterClose) {
+    theaterBtn.addEventListener("click", function () {
+        theaterModal.classList.add("active");
+    });
 
-
-theaterBtn.addEventListener("click", function () {
-    theaterModal.classList.add("active");
-});
-
-
-theaterClose.addEventListener("click", function () {
-    theaterModal.classList.remove("active");
-});
+    theaterClose.addEventListener("click", function () {
+        theaterModal.classList.remove("active");
+    });
+}
 
 
 // =========================================

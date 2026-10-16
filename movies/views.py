@@ -10,6 +10,7 @@ from django.views.decorators.cache import never_cache
 from django.core.paginator import Paginator
 from google import genai
 from google.genai import types
+from django.views.decorators.csrf import csrf_exempt
 
 API_KEY = ""
 ai_client = genai.Client(api_key=API_KEY)
@@ -48,10 +49,10 @@ def home_page(request):
 
 def the_loai(request):
     ten_the_loai_duoc_chon = request.GET.get("ten")
-
     danh_sach_the_loai = Genre.objects.all()
 
     if ten_the_loai_duoc_chon:
+        # Lấy toàn bộ phim thuộc thể loại được chọn
         ket_qua_phim = (
             Movie.objects.filter(genres__name=ten_the_loai_duoc_chon)
             .distinct()
@@ -60,10 +61,23 @@ def the_loai(request):
     else:
         ket_qua_phim = Movie.objects.none()
 
+    # 1. Cấu hình phân trang (25 phim / 1 trang) để đồng bộ với các trang khác
+    paginator = Paginator(ket_qua_phim, 25)
+    page_number = request.GET.get("page")
+    movies_page = paginator.get_page(page_number)
+
+    # 2. Xử lý giữ lại tham số 'ten' trên URL khi người dùng bấm qua trang mới
+    # Nếu không có query_string này, khi bấm trang 2 URL sẽ mất đi '?ten=Hành+Động' và sinh ra lỗi
+    query_dict = request.GET.copy()
+    if "page" in query_dict:
+        del query_dict["page"]
+    query_string = query_dict.urlencode()
+
     context = {
-        "movies": ket_qua_phim,
+        "movies": movies_page, # Truyền danh sách phim đã cắt trang
         "categories": danh_sach_the_loai,
         "tieu_de_muc": ten_the_loai_duoc_chon,
+        "query_string": query_string, # Truyền chuỗi này ra HTML để nối vào link phân trang
     }
 
     return render(request, "movies/the_loai.html", context)
@@ -114,7 +128,11 @@ def search_movie(request):
     # ==============================
 
     if genre_filters:
-        movies = movies.filter(genres__name__in=genre_filters).distinct()
+        for genre in genre_filters:
+            movies = movies.filter(genres__name=genre)
+        
+        # Dùng distinct() một lần cuối để đảm bảo không bị trùng lặp kết quả
+        movies = movies.distinct()
 
     # ==============================
     # 4. LỌC THEO RATING
@@ -299,102 +317,95 @@ def xem_series(request, id):
     return render(request, "movies/series_detail.html", context)
 
 
-def phim_dang_chieu(request):
-    # Lọc ra những phim có trường is_chieu_rap = True (Giống như đợt trước bạn lọc phim lẻ/bộ bằng số tập)
-    movies = Movie.objects.filter(is_chieu_rap=True)
-
-    # Trả về một template (ví dụ: phim_dang_chieu.html) kèm theo danh sách phim đã lọc
-    return render(request, "movies/phim_dang_chieu.html", {"movies": movies})
-
-
-def view_phim_sap_chieu(request):
-    today = date.today()
-    movies = Movie.objects.filter(release_date__gt=today)
-    return render(request, "movies/phim_sap_chieu.html", {"movies": movies})
-
-
-def view_phim_hot(request):
-    movies = Movie.objects.order_by("-rating")
-
-    # Mẹo: Nếu chỉ muốn lấy Top 10 phim hot nhất trang chủ, bạn dùng slice như sau:
-    # movies = Movie.objects.order_by('-rating')[:10]
-
-    return render(request, "movies/phim_hot.html", {"movies": movies})
-
-
+@csrf_exempt
 def chatbot_api(request):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
             user_message = data.get("message", "").strip()
+            chat_history = data.get("history", []) # Nhận mảng lịch sử từ Frontend
 
             if not user_message:
                 return JsonResponse({"reply": "Bạn muốn mình tư vấn phim gì nào?"})
 
             today = date.today()
 
-            # 1. Lấy 50 phim mới nhất kèm Thể loại và Link rạp (Dùng prefetch_related để web không bị giật lag)
+            # 1. TRUY XUẤT ĐẦY ĐỦ THÔNG TIN TỪ DATABASE
+            # Thêm 'type', 'runtime_minutes', 'description' vào truy vấn
             phim_db = Movie.objects.prefetch_related(
                 "genres", "theater_links"
             ).order_by("-release_date")
 
             chi_tiet_phim = []
             for p in phim_db:
-                # Lọc Thể loại
-                the_loai = (
-                    ", ".join([g.name for g in p.genres.all()])
-                    if p.genres.exists()
-                    else "Chưa rõ"
-                )
-
-                # Lọc Trạng thái (Sắp chiếu / Đã chiếu / Đang chiếu rạp / Phim Hot)
+                the_loai = ", ".join([g.name for g in p.genres.all()]) if p.genres.exists() else "Chưa rõ"
+                
                 trang_thai = []
                 if p.release_date and p.release_date > today:
-                    trang_thai.append(
-                        f"Sắp chiếu (Dự kiến: {p.release_date.strftime('%d/%m/%Y')})"
-                    )
+                    trang_thai.append(f"Sắp chiếu ({p.release_date.strftime('%d/%m/%Y')})")
                 else:
                     trang_thai.append("Đã ra mắt")
-
-                if getattr(p, "is_chieu_rap", False):
-                    trang_thai.append("Đang chiếu rạp")
                 if p.rating > 8.0:
                     trang_thai.append("Phim Hot🔥")
 
-                # Lọc Nơi xem (Rạp CGV, Lotte... hoặc Online như Netflix)
                 noi_xem = [link.theater_name for link in p.theater_links.all()]
-                noi_xem_str = (
-                    ", ".join(noi_xem) if noi_xem else "Chưa có thông tin nền tảng"
-                )
+                noi_xem_str = ", ".join(noi_xem) if noi_xem else "Chưa có thông tin"
+                
+                # Bổ sung các thông tin chi tiết: Loại phim, thời lượng, mô tả
+                loai_phim = getattr(p, "type", "Không xác định")
+                thoi_luong = getattr(p, "runtime_minutes", "N/A")
+                mo_ta = getattr(p, "description", "Chưa có mô tả.")
 
-                # Đóng gói thành 1 câu hoàn chỉnh cho AI đọc
-                info = f"- Tên phim: {p.title} | Thể loại: {the_loai} | Đánh giá: {p.rating}/10 | Trạng thái: {', '.join(trang_thai)} | Có thể xem tại: {noi_xem_str}"
+                info = (f"- Tên phim: {p.title} | Loại: {loai_phim} | Thể loại: {the_loai} | "
+                        f"Đánh giá: {p.rating}/10 | Thời lượng: {thoi_luong} phút | "
+                        f"Trạng thái: {', '.join(trang_thai)} | Xem tại: {noi_xem_str} | "
+                        f"Mô tả ngắn: {mo_ta[:200]}...") # Cắt ngắn mô tả để tiết kiệm token
                 chi_tiet_phim.append(info)
 
             danh_sach_phim = "\n".join(chi_tiet_phim)
 
-            # 2. Huấn luyện lại "Bộ não" để AI biết cách dùng dữ liệu mới
-            luat_choi = """
+            luat_choi = f"""
             Bạn là trợ lý ảo CSKH cực kỳ chuyên nghiệp của WebPHIMMOI.
-            Nhiệm vụ: Tư vấn phim CHỈ DỰA TRÊN danh sách được cung cấp. Tuyệt đối không bịa phim ngoài danh sách.
+            Nhiệm vụ: Tư vấn phim CHỈ DỰA TRÊN CƠ SỞ DỮ LIỆU ĐƯỢC CUNG CẤP DƯỚI ĐÂY. Tuyệt đối không bịa phim ngoài danh sách.
             
-            QUY TẮC TRÌNH BÀY BẮT BUỘC (RẤT QUAN TRỌNG):
-            1. LUÔN in đậm tên phim bằng dấu sao (Ví dụ: **Avengers: Hồi Kết**).
-            2. Nếu liệt kê nhiều phim, PHẢI dùng dấu gạch ngang (-) ở đầu dòng và mỗi phim nằm trên 1 dòng riêng biệt.
-            3. Giãn cách các đoạn văn bằng 1 dòng trống để khách dễ đọc.
-            4. Luôn trả lời ngắn gọn, thân thiện, xưng "mình" và gọi khách là "bạn".
-
-            - Nếu khách hỏi "phim chiếu rạp", hãy tìm phim có chữ "Đang chiếu rạp".
-            - Nếu khách hỏi "xem online", hãy tìm phim có nền tảng như "Netflix" ở mục "Có thể xem tại".
-            - Nếu khách hỏi rạp cụ thể (VD: CGV, Lotte), hãy dò đúng tên rạp trong mục "Có thể xem tại".
+            CƠ SỞ DỮ LIỆU PHIM:
+            {danh_sach_phim}
+            
+            QUY TẮC TRÌNH BÀY BẮT BUỘC:
+            1. Trả lời dựa vào ngữ cảnh của toàn bộ cuộc trò chuyện trước đó.
+            2. LUÔN in đậm tên phim bằng dấu sao (Ví dụ: **Avengers: Hồi Kết**).
+            3. Nếu liệt kê nhiều phim, PHẢI dùng dấu gạch ngang (-) ở đầu dòng và mỗi phim nằm trên 1 dòng riêng biệt.
+            4. Giãn cách các đoạn văn bằng 1 dòng trống để dễ đọc.
+            5. Luôn trả lời ngắn gọn, thân thiện, xưng "mình" và gọi khách là "bạn".
             """
 
-            # 3. Gửi cục dữ liệu siêu chi tiết này cho Gemini
-            prompt = f"DANH SÁCH PHIM HIỆN CÓ:\n{danh_sach_phim}\n\nCâu hỏi của khách: {user_message}"
+            # 2. XÂY DỰNG NỘI DUNG BAO GỒM LỊCH SỬ CHO GEMINI SDK MỚI
+            # Với thư viện google-genai, ta truyền một list các Content object
+            formatted_contents = []
+            
+            # Lặp qua lịch sử (bỏ qua tin nhắn cuối cùng vì nó đã được gửi trong user_message)
+            for msg in chat_history[:-1]:
+                # Map role: 'user' -> 'user', 'bot' -> 'model'
+                role = "user" if msg["role"] == "user" else "model"
+                formatted_contents.append(
+                    types.Content(
+                        role=role,
+                        parts=[types.Part.from_text(text=msg["content"])]
+                    )
+                )
 
+            # Thêm tin nhắn hiện tại của người dùng vào cuối
+            formatted_contents.append(
+                 types.Content(
+                     role="user",
+                     parts=[types.Part.from_text(text=user_message)]
+                 )
+            )
+
+            # 3. GỌI API GEMINI
             response = ai_client.models.generate_content(
-                model="gemini-flash-lite-latest",
-                contents=prompt,
+                model="gemini-3.5-flash-lite",
+                contents=formatted_contents, # Truyền lịch sử + tin nhắn hiện tại
                 config=types.GenerateContentConfig(
                     system_instruction=luat_choi,
                 ),
@@ -403,6 +414,7 @@ def chatbot_api(request):
             return JsonResponse({"reply": response.text})
 
         except Exception as e:
+            print("Chatbot Error:", e) # Log lỗi ra console để debug nếu cần
             return JsonResponse(
                 {
                     "reply": "Hệ thống AI hiện đang nghỉ ngơi một chút, bạn thử lại sau vài phút nhé!"

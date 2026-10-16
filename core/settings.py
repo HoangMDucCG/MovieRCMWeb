@@ -42,6 +42,12 @@ INSTALLED_APPS = [
     "movies",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.devtunnels.ms',
+    'https://*.vscode.dev',
+    'https://*.github.dev'
+]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

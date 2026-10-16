@@ -76,14 +76,14 @@
         </div>
     </header>
 
-    <main id="danh-sach-phim">
-        <h2 style="margin-left: 20px; color: #f39c12; margin-top: 20px;font-size: 24px">
+    <main id="danh-sach-phim" class="content-wrapper">
+        <h2 style="color: #f39c12; margin-top: 20px;font-size: 24px">
             Phim bộ
         </h2>
 
         <!-- Đổi sang class movie-grid-5 và thêm margin để căn lề -->
         <div class="movie-list-container">
-            <div class="movie-grid-5" style="margin: 0 20px;">
+            <div class="movie-grid-5">
                 {% for movie in movies %}
                 <div class="movie-card">
                     <a href="{% url 'xem_series' movie.id %}"

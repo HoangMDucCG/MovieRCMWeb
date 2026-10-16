@@ -22,7 +22,6 @@
 
             <div class="search-wrapper" style="position: relative">
                 <form class="search-box" method="GET" action="{% url 'search' %}">
-                    <!-- Icon kính lúp SVG -->
                     <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18"
                         height="18" fill="currentColor">
                         <path
@@ -32,12 +31,9 @@
                         autocomplete="off" />
                 </form>
 
-                <!-- Khung xổ xuống (Mặc định ẩn) -->
                 <div id="search-dropdown" class="search-dropdown" style="display: none">
                     <div class="dropdown-header">Danh sách phim</div>
-                    <div id="search-results-list">
-                        <!-- Dữ liệu từ JavaScript sẽ được nhúng vào đây -->
-                    </div>
+                    <div id="search-results-list"></div>
                 </div>
             </div>
 
@@ -81,15 +77,15 @@
         </div>
     </header>
 
-    <main>
-        <h2 style="margin-left: 20px; color: #f39c12; margin-top: 20px">
+    <main class="content-wrapper">
+        <h2 style="color: #f39c12; margin-top: 20px; font-size: 24px">
             {{ tieu_de_muc }}
         </h2>
 
         <div class="movie-list-container">
-            <div class="movie-grid">
+            <!-- ĐÃ ĐỔI TỪ movie-grid SANG movie-grid-5 Ở ĐÂY -->
+            <div class="movie-grid-5">
                 {% for movie in movies %}
-
                 <div class="movie-card">
                     <a href="{% url 'xem_series' movie.id %}" style="
                                 text-decoration: none;
@@ -107,17 +103,62 @@
                         </div>
                     </a>
                 </div>
-
                 {% empty %}
-
-                <p>Không có phim thuộc thể loại này.</p>
-
+                <p style="color: white; margin-left: 20px; grid-column: 1 / -1;">Không có phim thuộc thể loại này.</p>
                 {% endfor %}
             </div>
         </div>
+
+        <!-- THANH PHÂN TRANG -->
+        <div class="pagination">
+            <div class="page-numbers">
+                <span class="page-info">Trang {{ movies.number }} / {{ movies.paginator.num_pages }}</span>
+
+                {% if movies.number > 1 %}
+                <a href="?{% if query_string %}{{ query_string }}&{% endif %}page=1" class="page-link">Trang Đầu</a>
+                {% endif %}
+
+                <!-- prettier-ignore -->
+                {% for num in movies.paginator.page_range %}
+                {% if num == movies.number %}
+                <span class="page-link current-page">{{ num }}</span>
+                {% elif num > movies.number|add:'-3' and num < movies.number|add:'3' %} <a
+                    href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ num }}" class="page-link">{{ num
+                    }}</a>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if movies.number < movies.paginator.num_pages %} <a
+                        href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ movies.paginator.num_pages }}"
+                        class="page-link">Trang Cuối</a>
+                        {% endif %}
+            </div>
+        </div>
+
+        <!-- KHUNG CHAT AI BONG BÓNG -->
+        <div id="ai-chat-container" class="ai-chat-container">
+            <div id="ai-chat-window" class="ai-chat-window" style="display: none;">
+                <div class="chat-header">
+                    <span>Trợ lý WebPHIMMOI</span>
+                    <button id="close-chat-btn" class="close-chat-btn">×</button>
+                </div>
+                <div id="chat-messages" class="chat-messages">
+                    <div class="msg bot-msg">Chào Bạn! Bạn đang muốn tìm phim thể loại gì, hay phim hợp với tâm trạng
+                        hôm nay? Mình gợi ý cho!</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Ví dụ: Phim hài tình cảm..." autocomplete="off">
+                    <button id="send-chat-btn" class="send-chat-btn">Gửi</button>
+                </div>
+            </div>
+            <button id="ai-chat-toggle" class="ai-chat-toggle">💬 Tư vấn phim</button>
+        </div>
+
     </main>
     <script src="{% static 'js/live_search.js' %}"></script>
     <script src="{% static 'js/BL_mode.js' %}"></script>
+    <script src="{% static 'js/header.js' %}"></script>
+    <script src="{% static 'js/chatbot.js' %}"></script>
 </body>
 
 </html>

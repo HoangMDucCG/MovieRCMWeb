@@ -159,15 +159,6 @@
                         <span>{{ series.runtime_minutes }} phút</span>
                     </div>
                     {% endif %}
-
-
-                    {% if series.type %}
-                    <div class="detail-meta-item">
-                        <span class="detail-label">Loại:</span>
-                        <span>{{ series.type }}</span>
-                    </div>
-                    {% endif %}
-
                 </div>
 
 
@@ -246,7 +237,7 @@
 
                     {% if theater_links %}
                     <button type="button" class="watch-option-btn" id="theaterBtn">
-                        Rạp đang chiếu
+                        Rạp chiếu
                     </button>
                     {% endif %}
 
@@ -268,10 +259,10 @@
                             ×
                         </button>
 
-                        <h2>Rạp đang chiếu</h2>
+                        <h2>Rạp chiếu</h2>
 
                         <p class="watch-modal-description">
-                            Bạn có thể tìm phim tại:
+                            Bạn có thể tìm lịch chiếu phim tại:
                         </p>
 
                         <div class="watch-list">

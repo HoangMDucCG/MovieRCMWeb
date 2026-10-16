@@ -80,33 +80,38 @@
         </div>
     </header>
 
-    <main id="danh-sach-phim">
+    <main id="danh-sach-phim" class="content-wrapper">
         <!-- KHU VỰC TIÊU ĐỀ VÀ BỘ LỌC -->
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; margin: 20px 20px 20px 20px;padding: 0 50px">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
             <h2 style="color: #f39c12">
                 {% if query %} Kết quả tìm kiếm: "{{ query }}" {% else %}
                 Tất cả phim {% endif %}
             </h2>
 
             <!-- NÚT FILTER -->
-            <div class="filter-container" style="position: relative">
+            <div class="filter-container">
                 <button type="button" id="filter-button" class="filter-button">
                     FILTER
                 </button>
 
                 <!-- POPUP FILTER -->
                 <div id="filter-popup" class="filter-popup" style="display: none">
-                    <div class="filter-header">
+                    <!-- Đã sửa class thành "filter-popup-header" để nhận diện đúng CSS -->
+                    <div class="filter-popup-header">
                         <h3>Bộ lọc</h3>
+                        <!-- Tùy chọn: Bạn có thể thêm dấu X để đóng popup nếu muốn -->
+                        <!-- <button type="button" class="close-filter" id="close-filter-btn">&times;</button> -->
                     </div>
 
                     <!-- Loại phim -->
                     <div class="filter-section">
                         <h4>Loại phim</h4>
-                        <label><input type="radio" name="movie-type" value="" checked /> Tất cả</label>
-                        <label><input type="radio" name="movie-type" value="Phim Lẻ" /> Phim Lẻ</label>
-                        <label><input type="radio" name="movie-type" value="Phim Bộ" /> Phim Bộ</label>
+                        <label class="filter-radio"><input type="radio" name="movie-type" value="" checked /> Tất
+                            cả</label>
+                        <label class="filter-radio"><input type="radio" name="movie-type" value="Phim Lẻ" /> Phim
+                            Lẻ</label>
+                        <label class="filter-radio"><input type="radio" name="movie-type" value="Phim Bộ" /> Phim
+                            Bộ</label>
                     </div>
 
                     <!-- Thể loại -->
@@ -114,7 +119,7 @@
                         <h4>Thể loại</h4>
                         <div class="genre-list">
                             {% for the_loai in categories %}
-                            <label>
+                            <label class="filter-checkbox">
                                 <input type="checkbox" name="genre" value="{{ the_loai.name }}" />
                                 {{ the_loai.name }}
                             </label>
@@ -139,6 +144,8 @@
                         <h4>Thời lượng</h4>
                         <div class="runtime-values">
                             <span><span id="min-runtime-value">30</span> phút</span>
+                            <!-- (Tùy chọn) Thêm dấu gạch ngang ở giữa nếu muốn -->
+                            <span style="color: #666;">-</span>
                             <span><span id="max-runtime-value">240</span> phút</span>
                         </div>
                         <div class="runtime-slider">
@@ -157,7 +164,7 @@
 
         <!-- KHU VỰC DANH SÁCH PHIM -->
         <div class="movie-list-container">
-            <div class="movie-grid-5" style="margin: 0 20px;">
+            <div class="movie-grid-5">
                 {% for movie in movies %}
                 <div class="movie-card">
                     <a href="{% url 'xem_series' movie.id %}"

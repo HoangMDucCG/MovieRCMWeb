@@ -76,10 +76,10 @@
             </div>
         </div>
     </header>
-    <main>
+    <main class="content-wrapper">
         <!-- KHU VỰC 1: PHIM ĐANG HOT -->
         <section class="phim-hot">
-            <h2>Phim Đang Hot 🔥</h2>
+            <h2>Phim Đang Hot</h2>
             <div class="slider-container">
                 <!-- Nút Prev -->
                 <button class="slide-btn prev-btn" onclick="slide('hot-slider', -1)">
@@ -107,6 +107,7 @@
         </section>
 
         <!-- KHU VỰC 2: PHIM SẮP CHIẾU -->
+        {% if upcoming_movies %}
         <section class="phim-sap-chieu">
             <h2>Phim Sắp Chiếu</h2>
             <div class="slider-container">
@@ -114,16 +115,13 @@
                     &#10094;
                 </button>
 
-                <!-- ID đã được đổi thành upcoming-slider -->
                 <div class="movie-slider" id="upcoming-slider">
-                    <!-- Đã đổi biến thành upcoming_movies -->
                     {% for movie in upcoming_movies %}
                     <div class="movie-card">
                         <a href="{% url 'xem_series' movie.id %}" style="text-decoration: none; color: inherit">
                             <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" class="poster-img" />
                             <div class="movie-info">
                                 <h3>{{ movie.title }}</h3>
-                                <!-- Phim sắp chiếu thì hiển thị ngày chiếu thay vì Rating = 0.0 -->
                                 <p>Ngày chiếu: {{ movie.release_date|date:"d/m/Y" }}</p>
                             </div>
                         </a>
@@ -136,6 +134,7 @@
                 </button>
             </div>
         </section>
+        {% endif %}
 
         <!-- KHU VỰC 3: PHIM MỚI CẬP NHẬT -->
         <section class="phim-moi" id="danh-sach-phim">

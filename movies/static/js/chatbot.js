@@ -1,31 +1,110 @@
 document.addEventListener("DOMContentLoaded", function () {
     const chatToggle = document.getElementById("ai-chat-toggle");
     const chatWindow = document.getElementById("ai-chat-window");
-    const closeBtn = document.getElementById("close-chat-btn");
-    const sendBtn = document.getElementById("send-chat-btn");
-    const chatInput = document.getElementById("chat-input");
+    const closeChatBtn = document.getElementById("close-chat-btn");
     const chatMessages = document.getElementById("chat-messages");
+    const chatInput = document.getElementById("chat-input");
+    const sendBtn = document.getElementById("send-chat-btn");
 
-    // Ẩn/hiện khung chat
-    chatToggle.addEventListener("click", () => {
-        chatWindow.style.display = chatWindow.style.display === "none" ? "flex" : "none";
-    });
-    closeBtn.addEventListener("click", () => chatWindow.style.display = "none");
+    // Khởi tạo mảng lịch sử từ sessionStorage (nếu có)
+    let chatHistory = JSON.parse(sessionStorage.getItem("webphimmoi_chat_history")) || [];
 
-// Hàm gắn tin nhắn lên màn hình
-    function appendMessage(text, sender) {
-        const msgDiv = document.createElement("div");
-        
-        // Nếu là bot (AI) thì thêm class ai-format, nếu là user thì giữ nguyên
-        msgDiv.className = `msg ${sender === "user" ? "user-msg" : "bot-msg ai-format"}`;
-        
-        msgDiv.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        
-        chatMessages.appendChild(msgDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight; 
+    // Hàm định dạng tin nhắn của Bot (chữ in đậm, màu cam, xuống dòng)
+    function formatBotMessage(text) {
+        let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong class="movie-highlight">$1</strong>');
+        formatted = formatted.replace(/\n/g, '<br>');
+        return formatted;
     }
 
-    // Lấy CSRF Token để không bị Django block request POST
+    // Hàm render lại toàn bộ tin nhắn từ lịch sử khi load trang
+    function renderHistory() {
+        chatMessages.innerHTML = ""; 
+        
+        if (chatHistory.length === 0) {
+            chatMessages.innerHTML = `<div class="msg bot-msg">Chào Bạn! Bạn đang muốn tìm phim thể loại gì, hay phim hợp với tâm trạng hôm nay? Mình gợi ý cho!</div>`;
+        } else {
+            chatHistory.forEach(msg => {
+                const msgDiv = document.createElement("div");
+                msgDiv.className = `msg ${msg.role === "user" ? "user-msg" : "bot-msg ai-format"}`;
+                
+                // ĐÃ SỬA: Gọi hàm formatBotMessage ở đây
+                if (msg.role === "bot") {
+                    msgDiv.innerHTML = formatBotMessage(msg.content);
+                } else {
+                    msgDiv.textContent = msg.content;
+                }
+                
+                chatMessages.appendChild(msgDiv);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+
+    renderHistory();
+
+    chatToggle.addEventListener("click", () => {
+        chatWindow.style.display = "flex";
+        chatMessages.scrollTop = chatMessages.scrollHeight; 
+    });
+    closeChatBtn.addEventListener("click", () => chatWindow.style.display = "none");
+
+    function sendMessage() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        addMessageToUI("user", text);
+        chatHistory.push({ role: "user", content: text });
+        sessionStorage.setItem("webphimmoi_chat_history", JSON.stringify(chatHistory));
+        chatInput.value = "";
+
+        const loadingId = "loading-" + Date.now();
+        chatMessages.insertAdjacentHTML('beforeend', `<div id="${loadingId}" class="msg bot-msg">Đang suy nghĩ...</div>`);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        fetch("/api/chatbot/", { 
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken") 
+            },
+            body: JSON.stringify({ 
+                message: text,
+                history: chatHistory 
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById(loadingId).remove();
+            
+            addMessageToUI("bot", data.reply);
+            chatHistory.push({ role: "bot", content: data.reply });
+            sessionStorage.setItem("webphimmoi_chat_history", JSON.stringify(chatHistory));
+        })
+        .catch(err => {
+            const loadingElement = document.getElementById(loadingId);
+            if(loadingElement) loadingElement.textContent = "Lỗi kết nối máy chủ!";
+            console.error("Chat API Error:", err);
+        });
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    chatInput.addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
+
+    function addMessageToUI(role, text) {
+        const msgDiv = document.createElement("div");
+        msgDiv.className = `msg ${role === "user" ? "user-msg" : "bot-msg ai-format"}`;
+        
+        // ĐÃ SỬA: Gọi hàm formatBotMessage ở đây
+        if (role === "bot") {
+            msgDiv.innerHTML = formatBotMessage(text);
+        } else {
+             msgDiv.textContent = text;
+        }
+
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -40,45 +119,4 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         return cookieValue;
     }
-
-    async function sendMessage() {
-        const text = chatInput.value.trim();
-        if (!text) return;
-
-        appendMessage(text, "user");
-        chatInput.value = "";
-
-        // Hiển thị trạng thái đang nhập
-        const loadingId = "loading-" + Date.now();
-        const loadingDiv = document.createElement("div");
-        loadingDiv.className = "msg bot-msg";
-        loadingDiv.id = loadingId;
-        loadingDiv.innerHTML = "<em>Trợ lý đang tìm phim...</em>";
-        chatMessages.appendChild(loadingDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-
-        try {
-            const response = await fetch("/api/chatbot/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken") 
-                },
-                body: JSON.stringify({ message: text })
-            });
-
-            const data = await response.json();
-            document.getElementById(loadingId).remove();
-            appendMessage(data.reply, "bot");
-
-        } catch (error) {
-            document.getElementById(loadingId).remove();
-            appendMessage("Lỗi kết nối, vui lòng thử lại!", "bot");
-        }
-    }
-
-    sendBtn.addEventListener("click", sendMessage);
-    chatInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") sendMessage();
-    });
 });

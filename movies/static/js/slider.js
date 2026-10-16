@@ -30,6 +30,19 @@ function updateFadeEdges() {
             Math.ceil(slider.scrollLeft + slider.clientWidth) >=
             slider.scrollWidth - 1;
 
+        const hasOverflow = slider.scrollWidth > slider.clientWidth+1;
+        
+        const container = slider.parentElement;
+        const prevBtn = container.querySelector(".prev-btn");
+        const nextBtn = container.querySelector(".next-btn");
+
+        if (prevBtn) {
+            prevBtn.style.display = hasOverflow ? "block" : "none";
+        }
+
+        if (nextBtn) {
+            nextBtn.style.display = hasOverflow ? "block" : "none";
+        }
         if (isAtStart) {
             slider.classList.add("at-start");
             slider.classList.remove("at-end");
@@ -51,3 +64,5 @@ document.addEventListener("DOMContentLoaded", () => {
         slider.addEventListener("scroll", updateFadeEdges);
     });
 });
+
+window.addEventListener("resize", updateFadeEdges); // Cập nhật khi thay đổi kích thước cửa sổ
