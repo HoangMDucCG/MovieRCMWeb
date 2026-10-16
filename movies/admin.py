@@ -22,4 +22,3 @@ class MovieAdmin(admin.ModelAdmin):
 admin.site.register(Genre)
 admin.site.register(Movie, MovieAdmin)
 
-# Không đăng ký admin.site.register(TheaterLink) ở đây nữa để nó không đứng độc lập bên ngoài
