@@ -22,3 +22,5 @@ media_root/
 *.swp
 *.swo
 *.log
+import_data.py
+data_phim_python.json
