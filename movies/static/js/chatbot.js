@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Hàm render lại toàn bộ tin nhắn từ lịch sử khi load trang
     function renderHistory() {
-        chatMessages.innerHTML = ""; 
+        chatMessages.innerHTML = "";
         
         if (chatHistory.length === 0) {
             chatMessages.innerHTML = `<div class="msg bot-msg">Chào Bạn! Bạn đang muốn tìm phim thể loại gì, hay phim hợp với tâm trạng hôm nay? Mình gợi ý cho!</div>`;

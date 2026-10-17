@@ -1,3 +1,4 @@
+import os
 import json
 import random
 from datetime import date
@@ -10,6 +11,7 @@ from django.core.paginator import Paginator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
@@ -19,7 +21,8 @@ from .models import Movie, Genre
 # CẤU HÌNH API
 # ==============================================================================
 
-API_KEY = ""
+load_dotenv()
+API_KEY = os.environ.get("API_KEY")
 ai_client = genai.Client(api_key=API_KEY)
 
 
@@ -27,13 +30,20 @@ ai_client = genai.Client(api_key=API_KEY)
 # 1. TRANG CHỦ VÀ DANH MỤC CHÍNH
 # ==============================================================================
 
+
 @never_cache
 def home_page(request):
     """Trang chủ hiển thị Phim Hot, Phim Sắp Chiếu và Phim Mới Cập Nhật."""
     today = date.today()
-    hot_movies = Movie.objects.filter(rating__gt=8.0, release_date__lte=today).order_by("-rating")[:10]
-    upcoming_movies = Movie.objects.filter(release_date__gt=today).order_by("release_date")
-    new_movies_list = Movie.objects.filter(release_date__lte=today).order_by("-release_date")
+    hot_movies = Movie.objects.filter(rating__gt=8.0, release_date__lte=today).order_by(
+        "-rating"
+    )[:10]
+    upcoming_movies = Movie.objects.filter(release_date__gt=today).order_by(
+        "release_date"
+    )
+    new_movies_list = Movie.objects.filter(release_date__lte=today).order_by(
+        "-release_date"
+    )
 
     paginator = Paginator(new_movies_list, 25)
     page_number = request.GET.get("page")
@@ -52,8 +62,11 @@ def the_loai(request):
     """Lọc phim theo Thể loại (Genre)."""
     ten_the_loai = request.GET.get("ten")
     ket_qua_phim = (
-        Movie.objects.filter(genres__name=ten_the_loai).distinct().order_by("-release_date")
-        if ten_the_loai else Movie.objects.none()
+        Movie.objects.filter(genres__name=ten_the_loai)
+        .distinct()
+        .order_by("-release_date")
+        if ten_the_loai
+        else Movie.objects.none()
     )
 
     paginator = Paginator(ket_qua_phim, 25)
@@ -77,7 +90,7 @@ def the_loai(request):
 def phim_le(request):
     """Danh sách tất cả Phim Lẻ."""
     danh_sach_phim = Movie.objects.filter(type="Phim Lẻ").order_by("-release_date")
-    
+
     paginator = Paginator(danh_sach_phim, 25)
     page_number = request.GET.get("page")
     movies_page = paginator.get_page(page_number)
@@ -92,7 +105,7 @@ def phim_le(request):
 def phim_bo(request):
     """Danh sách tất cả Phim Bộ."""
     danh_sach_phim = Movie.objects.filter(type="Phim Bộ").order_by("-release_date")
-    
+
     paginator = Paginator(danh_sach_phim, 25)
     page_number = request.GET.get("page")
     movies_page = paginator.get_page(page_number)
@@ -107,6 +120,7 @@ def phim_bo(request):
 # ==============================================================================
 # 2. TÌM KIẾM VÀ LỌC (SEARCH & FILTER)
 # ==============================================================================
+
 
 def search_movie(request):
     """Tìm kiếm nâng cao kết hợp bộ lọc (Tên, Loại, Thể loại, Rating, Thời lượng)."""
@@ -181,12 +195,15 @@ def live_search(request):
     query = request.GET.get("q", "").strip()
     if query:
         movies = Movie.objects.filter(title__icontains=query)[:5]
-        results = [{
-            "title": m.title,
-            "poster_url": m.poster_url,
-            "year": m.release_date.year if m.release_date else "N/A",
-            "url": reverse("xem_series", args=[m.id]),
-        } for m in movies]
+        results = [
+            {
+                "title": m.title,
+                "poster_url": m.poster_url,
+                "year": m.release_date.year if m.release_date else "N/A",
+                "url": reverse("xem_series", args=[m.id]),
+            }
+            for m in movies
+        ]
         return JsonResponse({"results": results})
     return JsonResponse({"results": []})
 
@@ -195,9 +212,10 @@ def live_search(request):
 # 3. TRANG CHI TIẾT VÀ TÍNH NĂNG PHỤ
 # ==============================================================================
 
+
 def ngau_nhien(request):
     """Chuyển hướng ngẫu nhiên đến một phim bất kỳ."""
-    movies = list(Movie.objects.values_list('id', flat=True))
+    movies = list(Movie.objects.values_list("id", flat=True))
     if movies:
         return redirect("xem_series", id=random.choice(movies))
     return redirect("home")
@@ -205,15 +223,16 @@ def ngau_nhien(request):
 
 def get_youtube_id(url):
     """Trích xuất ID Video YouTube từ URL để nhúng iframe."""
-    if not url: return None
+    if not url:
+        return None
     parsed_url = urlparse(url)
-    
+
     if parsed_url.hostname in ["www.youtube.com", "youtube.com"]:
         if parsed_url.path == "/watch":
             return parse_qs(parsed_url.query).get("v", [None])[0]
         if parsed_url.path.startswith("/embed/"):
             return parsed_url.path.split("/embed/")[1]
-            
+
     if parsed_url.hostname == "youtu.be":
         return parsed_url.path.lstrip("/")
     return None
@@ -239,6 +258,7 @@ def xem_series(request, id):
 # 4. CHATBOT AI API (GEMINI)
 # ==============================================================================
 
+
 @csrf_exempt
 def chatbot_api(request):
     """API giao tiếp giữa Chatbot Frontend và Gemini Backend."""
@@ -254,17 +274,30 @@ def chatbot_api(request):
             return JsonResponse({"reply": "Bạn muốn mình tư vấn phim gì nào?"})
 
         today = date.today()
-        phim_db = Movie.objects.prefetch_related("genres", "theater_links").order_by("-release_date")
-        
+        phim_db = Movie.objects.prefetch_related("genres", "theater_links").order_by(
+            "-release_date"
+        )
+
         # Tạo cơ sở dữ liệu phim dạng Text cho Prompt
         chi_tiet_phim = []
         for p in phim_db:
-            the_loai = ", ".join([g.name for g in p.genres.all()]) if p.genres.exists() else "Chưa rõ"
-            trang_thai = ["Sắp chiếu" if p.release_date and p.release_date > today else "Đã ra mắt"]
-            if p.rating > 8.0: trang_thai.append("Phim Hot🔥")
-            
+            the_loai = (
+                ", ".join([g.name for g in p.genres.all()])
+                if p.genres.exists()
+                else "Chưa rõ"
+            )
+            trang_thai = [
+                (
+                    "Sắp chiếu"
+                    if p.release_date and p.release_date > today
+                    else "Đã ra mắt"
+                )
+            ]
+            if p.rating > 8.0:
+                trang_thai.append("Phim Hot🔥")
+
             noi_xem = [link.theater_name for link in p.theater_links.all()]
-            
+
             info = (
                 f"- Tên phim: {p.title} | Loại: {getattr(p, 'type', 'N/A')} | Thể loại: {the_loai} | "
                 f"Đánh giá: {p.rating}/10 | Thời lượng: {getattr(p, 'runtime_minutes', 'N/A')} phút | "
@@ -292,8 +325,9 @@ def chatbot_api(request):
         formatted_contents = [
             types.Content(
                 role="user" if msg["role"] == "user" else "model",
-                parts=[types.Part.from_text(text=msg["content"])]
-            ) for msg in chat_history[:-1]
+                parts=[types.Part.from_text(text=msg["content"])],
+            )
+            for msg in chat_history[:-1]
         ]
         formatted_contents.append(
             types.Content(role="user", parts=[types.Part.from_text(text=user_message)])
@@ -309,4 +343,7 @@ def chatbot_api(request):
 
     except Exception as e:
         print("Chatbot Error:", e)
-        return JsonResponse({"reply": "Hệ thống AI hiện đang nghỉ ngơi một chút, thử lại sau nhé!"}, status=500)
+        return JsonResponse(
+            {"reply": "Hệ thống AI hiện đang nghỉ ngơi một chút, thử lại sau nhé!"},
+            status=500,
+        )
