@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-27g2gop##p#slxizo9heaz12$i_d39wye%$q85ij!z19560b$7"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
@@ -43,9 +43,9 @@ INSTALLED_APPS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://*.devtunnels.ms',
-    'https://*.vscode.dev',
-    'https://*.github.dev'
+    "https://*.devtunnels.ms",
+    "https://*.vscode.dev",
+    "https://*.github.dev",
 ]
 
 MIDDLEWARE = [

@@ -320,14 +320,16 @@ def chatbot_api(request):
         3. Nếu liệt kê nhiều phim, PHẢI dùng gạch đầu dòng (-).
         4. Trả lời ngắn gọn, thân thiện, xưng "mình" và gọi "bạn".
         """
-
+        recent_history = (
+            chat_history[-11:-1] if len(chat_history) > 10 else chat_history[:-1]
+        )
         # Format history cho Google GenAI SDK
         formatted_contents = [
             types.Content(
                 role="user" if msg["role"] == "user" else "model",
                 parts=[types.Part.from_text(text=msg["content"])],
             )
-            for msg in chat_history[:-1]
+            for msg in recent_history
         ]
         formatted_contents.append(
             types.Content(role="user", parts=[types.Part.from_text(text=user_message)])

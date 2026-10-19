@@ -23,8 +23,8 @@ pip install -r requirements.txt
 Bước 4: Cấu hình API Key cho Chatbot Gemini
 Dự án sử dụng Google Gemini AI để làm trợ lý tư vấn phim. Bạn cần có API Key để chatbot hoạt động:
 Lấy API Key miễn phí tại Google AI Studio.
-Mở file movies/views.py.
-Tìm đến dòng API_KEY = "..." và thay thế bằng API Key của bạn.
+Tạo file .env cùng cấp với manage.py
+Tạo API_KEY = "..." và thay thế bằng API Key của bạn.
 
 Bước 5: Khởi tạo Cơ sở dữ liệu (Database)
 **Mặc định Django sẽ dùng SQLite. Tuy nhiên, kiến trúc dự án được thiết kế linh hoạt để kết nối với các RDBMS lớn. Nếu bạn định cấu hình web kết nối với SQL Server hoặc MySQL thông qua DBeaver/SSMS, bạn cần cài thêm driver tương ứng.
