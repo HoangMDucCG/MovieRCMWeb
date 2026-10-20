@@ -35,7 +35,6 @@ class Movie(models.Model):
 
 
 class TheaterLink(models.Model):
-    # Liên kết bảng này với bảng Movie để 1 phim có nhiều nút đặt vé rạp khác nhau
     movie = models.ForeignKey(
         Movie, on_delete=models.CASCADE, related_name="theater_links"
     )

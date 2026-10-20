@@ -2,17 +2,14 @@ from django.contrib import admin
 from .models import Genre, Movie, TheaterLink
 
 
-# 1. Tạo giao diện dạng bảng (Inline) cho các link rạp
 class TheaterLinkInline(admin.TabularInline):
     model = TheaterLink
-    extra = 1  # Số dòng trống mặc định hiển thị để bạn thêm mới rạp
+    extra = 1
 
 
-# 2. Tích hợp Inline vào giao diện quản lý Phim
 class MovieAdmin(admin.ModelAdmin):
     inlines = [TheaterLinkInline]
 
-    # (Tùy chọn) Cấu hình thêm để danh sách phim hiện đẹp hơn ở ngoài cùng
     list_display = ("title", "type", "release_date", "rating")
     list_filter = ("type", "genres")
     search_fields = ("title",)
@@ -21,4 +18,3 @@ class MovieAdmin(admin.ModelAdmin):
 # 3. Đăng ký các Model
 admin.site.register(Genre)
 admin.site.register(Movie, MovieAdmin)
-

@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import random
 from datetime import date
 from urllib.parse import urlparse, parse_qs
@@ -73,7 +74,6 @@ def the_loai(request):
     page_number = request.GET.get("page")
     movies_page = paginator.get_page(page_number)
 
-    # Giữ lại tham số url khi chuyển trang
     query_dict = request.GET.copy()
     if "page" in query_dict:
         del query_dict["page"]
@@ -124,7 +124,9 @@ def phim_bo(request):
 
 def search_movie(request):
     """Tìm kiếm nâng cao kết hợp bộ lọc (Tên, Loại, Thể loại, Rating, Thời lượng)."""
-    query = request.GET.get("q", "").strip()
+    raw_query = request.GET.get("q", "").strip()
+    query = re.sub(r"[^\w\s]|_", "", raw_query)
+    query = query.strip()
     movie_type = request.GET.get("type", "").strip()
     genre_filters = request.GET.getlist("genre")
     min_rating = request.GET.get("min_rating", "").strip()
@@ -133,21 +135,17 @@ def search_movie(request):
 
     movies = Movie.objects.all().order_by("-id")
 
-    # Lọc theo tên
     if query:
         movies = movies.filter(title__icontains=query)
 
-    # Lọc theo loại phim (Lẻ/Bộ)
     if movie_type:
         movies = movies.filter(type=movie_type)
 
-    # Lọc theo thể loại (AND)
     if genre_filters:
         for genre in genre_filters:
             movies = movies.filter(genres__name=genre)
         movies = movies.distinct()
 
-    # Lọc theo Rating tối thiểu
     if min_rating:
         try:
             if float(min_rating) > 0:
@@ -155,7 +153,6 @@ def search_movie(request):
         except ValueError:
             pass
 
-    # Lọc theo Khoảng thời lượng
     if min_runtime:
         try:
             movies = movies.filter(runtime_minutes__gte=int(min_runtime))
@@ -167,7 +164,6 @@ def search_movie(request):
         except ValueError:
             pass
 
-    # Giữ lại URL params cho phân trang
     query_dict = request.GET.copy()
     if "page" in query_dict:
         del query_dict["page"]
@@ -278,7 +274,6 @@ def chatbot_api(request):
             "-release_date"
         )
 
-        # Tạo cơ sở dữ liệu phim dạng Text cho Prompt
         chi_tiet_phim = []
         for p in phim_db:
             the_loai = (
@@ -323,7 +318,6 @@ def chatbot_api(request):
         recent_history = (
             chat_history[-11:-1] if len(chat_history) > 10 else chat_history[:-1]
         )
-        # Format history cho Google GenAI SDK
         formatted_contents = [
             types.Content(
                 role="user" if msg["role"] == "user" else "model",

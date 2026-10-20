@@ -6,17 +6,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const chatInput = document.getElementById("chat-input");
     const sendBtn = document.getElementById("send-chat-btn");
 
-    // Khởi tạo mảng lịch sử từ sessionStorage (nếu có)
     let chatHistory = JSON.parse(sessionStorage.getItem("webphimmoi_chat_history")) || [];
 
-    // Hàm định dạng tin nhắn của Bot (chữ in đậm, màu cam, xuống dòng)
     function formatBotMessage(text) {
         let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong class="movie-highlight">$1</strong>');
         formatted = formatted.replace(/\n/g, '<br>');
         return formatted;
     }
 
-    // Hàm render lại toàn bộ tin nhắn từ lịch sử khi load trang
     function renderHistory() {
         chatMessages.innerHTML = "";
         
@@ -27,7 +24,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 const msgDiv = document.createElement("div");
                 msgDiv.className = `msg ${msg.role === "user" ? "user-msg" : "bot-msg ai-format"}`;
                 
-                // ĐÃ SỬA: Gọi hàm formatBotMessage ở đây
                 if (msg.role === "bot") {
                     msgDiv.innerHTML = formatBotMessage(msg.content);
                 } else {
